@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+tmp_audio/
+tmp_transcripts/
+logs/
+npm-debug.log*
+pnpm-debug.log*
+*.log
+.DS_Store
+

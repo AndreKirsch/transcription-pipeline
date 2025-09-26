@@ -1,0 +1,52 @@
+workflow:
+  name: dropbox_gpt_transcription_to_mongo
+  description: >
+    Custom Node/TypeScript script: checks Dropbox, downloads new audio,
+    transcribes with GPT, stores transcript + metadata in MongoDB.
+
+  schedule:
+    cron: '30 11,15 * * *' # run daily at 11:30 and 15:30 (server local time)
+    timezone: 'America/Los_Angeles'
+
+  connections:
+    dropbox:
+      access_token: ${DROPBOX_ACCESS_TOKEN}
+      root_path: /Five9_Recordings/Prostagenix_Sales
+      file_extensions: ['.wav', '.mp3']
+      exclude_folders: ['/archived', '/ignore']
+      only_new_files: true
+
+    openai:
+      api_key: ${OPENAI_API_KEY}
+      model: gpt-4o-transcribe # or whisper-1 if you prefer
+      language: en
+
+    mongodb:
+      uri: ${MONGO_URI}
+      database: call_transcripts
+      collection: prostagenix_sales
+
+  steps:
+    - id: fetch_audio_from_dropbox
+      action: download_files
+      from: dropbox
+      save_to: ./tmp_audio # local temp directory
+
+    - id: transcribe_audio
+      action: gpt_transcribe
+      input: ./tmp_audio
+      output: ./tmp_transcripts # local JSON or text per file
+      prompt: |
+        You are a professional transcriptionist. Produce verbatim transcripts with speaker
+        labels when possible, fixing obvious misheard words while preserving intent.
+        File name: {{file.name}} | Dropbox path: {{file.path}}
+
+    - id: store_transcripts
+      action: insert_documents
+      from: ./tmp_transcripts
+      to: mongodb
+      document_template:
+        filename: '{{file.name}}'
+        dropbox_path: '{{file.path}}'
+        transcript: '{{file.transcript}}'
+        created_at: '{{now}}'

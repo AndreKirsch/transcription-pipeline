@@ -1,0 +1,7 @@
+.env
+node_modules/
+incoming/
+processed/
+logs/
+*.log
+.DS_Store
